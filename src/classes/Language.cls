@@ -1,4 +1,4 @@
-public without sharing class Language
+public class Language
 {
     public enum FullName
     {

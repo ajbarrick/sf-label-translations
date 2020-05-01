@@ -1,6 +1,7 @@
-public class LabelTranslator
+public with sharing class LabelTranslator
 {
     private static Map<String, String> valuesToApiNames;
+    private static MetadataService.ReadTranslationsResult translations;
     
     static
     {
@@ -12,12 +13,11 @@ public class LabelTranslator
         {
             for (MetadataService.CustomLabel lb : label.labels)
             {
-                System.debug(lb.value);
-                System.debug(lb.fullName);
                 valuesToApiNames.put(lb.value, lb.fullName);
             }
         }
-
+        
+        translations = GetTranslations();
     }
     
     public static String GetTranslationFor(String label, Language.FullName languageName)
@@ -25,7 +25,7 @@ public class LabelTranslator
         String lang = Language.GetLanguageCode(languageName);
         
         if (!String.IsBlank(lang))
-        {        
+        {
             return GetTranslationFor(label, lang);
         }
         
@@ -38,21 +38,12 @@ public class LabelTranslator
         
         if (!String.IsBlank(labelValue) && !String.IsBlank(languageCode))
         {
-            MetadataService.MetadataPort proxy = new MetadataService.MetadataPort();
-            MetadataService.SessionHeader_element header = new MetadataService.SessionHeader_element();
-            header.sessionId = UserInfo.getSessionId();
-            proxy.SessionHeader = header;
-            MetadataService.ReadTranslationsResult props = (MetadataService.ReadTranslationsResult) proxy.readMetadata('Translations', new List<String>{ 'de' });
-            
-            for (MetadataService.Translations translatedLanguage : props.records)
+            for (MetadataService.Translations translatedLanguage : translations.records)
             {
                 if (translatedLanguage.fullName == languageCode)
                 {
                     for (MetadataService.CustomLabelTranslation translation : translatedLanguage.customLabels)
                     {
-                        System.debug(translation.name);
-                        System.debug(translation.label);
-                        
                         if (translation.name == labelApiName)
                         {
                             return translation.label;
@@ -64,13 +55,26 @@ public class LabelTranslator
         
         return '';
     }
-    
-    private static MetadataService.ReadCustomLabelsResult GetLabels()
+
+    private static MetadataService.MetadataPort GetProxyWithHeader()
     {
         MetadataService.MetadataPort proxy = new MetadataService.MetadataPort();
         MetadataService.SessionHeader_element header = new MetadataService.SessionHeader_element();
         header.sessionId = UserInfo.getSessionId();
         proxy.SessionHeader = header;
+
+        return proxy;
+    }
+    
+    private static MetadataService.ReadCustomLabelsResult GetLabels()
+    {
+        MetadataService.MetadataPort proxy = GetProxyWithHeader();
         return (MetadataService.ReadCustomLabelsResult) proxy.readMetadata('CustomLabels', new List<String>{ 'CustomLabels' });
+    }
+
+    private static MetadataService.ReadTranslationsResult GetTranslations()
+    {
+        MetadataService.MetadataPort proxy = GetProxyWithHeader();
+        return (MetadataService.ReadTranslationsResult) proxy.readMetadata('Translations', new List<String>{ 'de' });
     }
 }
